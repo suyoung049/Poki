@@ -68,6 +68,127 @@ AI를 활용하여 미션을 추천받아 보세요.
 
 
 ## 📚 프로젝트 진행시 맡은 부분
+- Board & Wishlist CRUD 설계
+
+  - 유저간 Board  동기화를 위한 Client-Server  통신 방식 개선
+
+    - 자녀의 Whishlist 중에 선물을 선택, 포도 개수 31개 완료후 선물 증정 -> Board 생성, 삭제 필요
+
+    - 부모가 자녀에게 포도알을 증정하거나, 자녀가 포도알을 붙힐경우 서로의 화면에 정보 동기화 필요
+
+    - 서비스 메인페이지에서는 위의 다수의 이벤트들이 발생, 발생 할 때마다 보드의 정보가 필요
+
+    - 초기 설계시 Poling 방식으로 각각의 이벤트가 전부 Board 의 상태를 요청 -> 서버 과부화 발생
+
+    - 처음 메인 페이지에서 클라이언트가 서버에 Board의 상태를 요청후 대기, 이벤트 발생시 서버 측에서 상태를 응답하는 SSE 방식으로 변경 
+
+
+  - 소스 코드
+
+    ```javascript
+    @Sse('/grape/sse/user')
+        async sseGetBoardByUserId(
+          @GetUser() user: User,
+          @GetUserId() id: number,
+          @GetUserType() type: string,
+        ): Promise<Observable<responseSseBoardDto>> {
+      
+          if (type !== 'PARENT') {
+            id = await this.AuthService.getConnectedUser(user);
+          }
+          const use_grape = await this.boardService.getBoardByUserId(id);
+          return new Observable<responseSseBoardDto>((observer) => {
+            let localVersion = 0; // Local version variable
+            const initialData = async () => {
+                // 맨 처음 보드 상태를 불러옴(Board 존재하지 않을 경우)          
+                if (!use_grape) {
+                    const initialResponse: responseSseBoardDto = {
+                        data: {
+                            code: 200,
+                            success: true,
+                            grape: {
+                                id:0,
+                                blank: 0,
+                                total_grapes: 0,
+                                attached_grapes: 0,
+                                deattached_grapes: 0,
+                            },
+                            is_existence: false,
+                        },
+                    };
+                    observer.next(initialResponse);
+                    localVersion = globalVersion;
+                  // Update the local version
+                    return;
+                }
+              // 맨 처음 보드 상태를 불러옴(Board 존재할 경우)
+                const initialResponse: responseSseBoardDto = {
+                    data: {
+                    code: 200,
+                    success: true,
+                    grape: await this.boardService.getBoardByUserId(id),
+                    is_existence: true,
+                    },
+                };
+                observer.next(initialResponse);
+                localVersion = globalVersion;
+                // Update the local version
+                };
+            
+            
+            const updateData = async () => {
+            // 다른 이벤트가 발생했을 경우
+              if (localVersion < globalVersion) {
+                const use_grape = await this.boardService.getBoardByUserId(id);
+                // 맨 처음 보드 상태를 불러옴(Wishlist 증정으로 인한 Board 존재하지 않을 경우)
+                if (!use_grape) {
+                    const response: responseSseBoardDto = {
+                        data: {
+                            code: 200,
+                            success: true,
+                            grape: {
+                                id:0,
+                                blank: 0,
+                                total_grapes: 0,
+                                attached_grapes: 0,
+                                deattached_grapes: 0,
+                            },
+                            is_existence: false,
+                        },
+                    };
+                    observer.next(response);
+                    localVersion = globalVersion; // Update the local version
+                    return;
+                }
+                // 맨 처음 보드 상태를 불러옴(Board 존재할 경우)
+                const response: responseSseBoardDto = {
+                  data: {
+                    code: 200,
+                    success: true,
+                    grape: await this.boardService.getBoardByUserId(id),
+                    is_existence: true,
+                  },
+                };
+                observer.next(response);
+                localVersion = globalVersion; // Update the local version
+              }
+            };
+            initialData(); 
+            const intervalId = setInterval(updateData, 500);
+            // 클라이언트 측에서 연결이 끊어졌을 경우
+            observer.complete = () => {
+              clearInterval(intervalId);
+            };
+            
+            localVersion = globalVersion;
+            return observer;
+          });
+    
+        }
+    ```
+
+    
+
 
 
 ## 📚 기술스택
