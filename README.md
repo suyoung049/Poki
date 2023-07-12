@@ -202,6 +202,112 @@ AI를 활용하여 미션을 추천받아 보세요.
     
     ```
 
+    - Chat WebSocket 백엔드 부분 설계
+
+  - 채팅 내역 저장
+
+    - 상대방과의 채팅 내역 저장을 위해  eventGateway 측에서 Message 정보 직접 저장
+  
+      ```javascript
+        @SubscribeMessage('message')
+          async handleMessage(
+              @ConnectedSocket() socket: Socket,
+              @MessageBody() { roomName, message, user }: MessagePayload,
+          ) {
+              // Save message in database
+              this.eventService.createMessage(user.user_id, message, roomName, user.id, user.name);
+      
+              socket.to(roomName).emit('message', { sender_id: user.user_id, message, check_id: user.id, createdAt: new Date(), sender_name: user.name });
+      
+              return { sender_id: user.user_id, message, check_id: user.id, createdAt: new Date(), sender_name: user.name };
+          }
+      ```
+  
+    - 저장된 채팅 내역 채팅 작성된 시간 순으로  리스트 형식으로 클라이언트 측에 응답
+  
+      ```javascript
+          async getMessage(room_name: string): Promise<Message[]> {
+              const messages = await this.messageRepository
+                .createQueryBuilder('message')
+                .where('message.conversation_id = :room_name', { room_name })
+                .orderBy('message.createdAt', 'ASC')
+                .getMany();
+            
+              return messages ;
+            }
+      ```
+  
+  - 채팅 알림을 위한 채팅방 입장/비입장 표시 구현
+  
+    - 채팅방에 상대방 없을시 메세지 내용 알림으로 전송하는 기능 구현
+  
+    - 구현 위에 유저가 채팅 페이지에 입장시 지정된 DB에 저장
+  
+    - 유저가 채팅 페이지에 나갈 시 DB에서 삭제 
+  
+      ```javascript
+      //유저 채팅방에 입장시
+       @SubscribeMessage('setUserName')
+          async handleSetUserName(
+              @MessageBody() data: { user_id: string },
+              @ConnectedSocket() socket: Socket
+          ) {
+              await this.eventService.createChatSocketConnection(data.user_id, socket.id);
+          }
+      -----------------------------------------------------------------------------------------------
+      // 유저 채팅방 퇴장시
+       @SubscribeMessage('disconnect')
+          async handleDisconnect(@ConnectedSocket() socket: Socket) {
+              try {
+                  const disconnectedUser = await
+                  this.eventService.findChatConnectionBySocketId(socket.id);
+                  if (disconnectedUser) {
+                      this.eventService.deleteChatConnection(disconnectedUser)
+                  }
+              } catch (error) {
+                  this.logger.error(error);
+              }
+      
+          }
+          
+      ```
+  
+    - DB에 유저 존재 여부에 따른 입장/비입장 표시
+  
+      ```javascript
+      //@SubscribeMessage('message')
+      const now_user = await this.authService.getUserById(user.id);
+              // 채팅방에 상대방이 있는지 확인
+              const connect_userId = await this.authService.getConnectedUser_id(now_user);
+      
+              const check = await this.eventService.checkChatConnection(connect_userId);
+      
+              if (!check) {
+      
+                  try {
+      
+                      const connect_id = await this.authService.getConnectedUser(now_user);
+                      const pushToken = await this.pushService.getPushToeknByUserId(connect_id);
+      
+                      const title = '새로운 메시지가 도착했습니다.';
+                      let info;
+      
+                      if (!message.startsWith('/static/media')) {
+                          info = message;
+                      }
+                      else {
+                          info = '이모티콘을 보냈습니다.'
+                      }
+                      await this.pushService.push_noti(pushToken, title, info);
+                  } catch (exception) {
+                      if (exception instanceof ForbiddenException) {
+                          return { sender_id: user.user_id, message, check_id: user.id, createdAt: new Date(), sender_name: user.name };
+                      }
+      
+                  }
+              }
+      ```
+
     
 
 
