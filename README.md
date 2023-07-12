@@ -67,6 +67,8 @@ AI를 활용하여 미션을 추천받아 보세요.
 ![알림](https://github.com/po-do/Poki/assets/108652367/f614dcb2-af6d-4b17-a81e-d04df9b6f0d6)
 
 
+## 📚 프로젝트 진행시 맡은 부분
+
 
 ## 📚 기술스택
 
