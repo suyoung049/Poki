@@ -82,10 +82,14 @@ AI를 활용하여 미션을 추천받아 보세요.
 
     - 처음 메인 페이지에서 클라이언트가 서버에 Board의 상태를 요청후 대기, 이벤트 발생시 서버 측에서 상태를 응답하는 SSE 방식으로 변경 
 
+      
 
   - 소스 코드
 
+    - 메인페이지 접속시 클라이언트 측에서  Board 상태 요청 -> 서버 측 처음 Board 상태 응답후 대기
+
     ```javascript
+    let globalVersion = 0; // Global version variable(전역변수 지정)
     @Sse('/grape/sse/user')
         async sseGetBoardByUserId(
           @GetUser() user: User,
@@ -134,10 +138,22 @@ AI를 활용하여 미션을 추천받아 보세요.
                 localVersion = globalVersion;
                 // Update the local version
                 };
-            
-            
-            const updateData = async () => {
-            // 다른 이벤트가 발생했을 경우
+    ```
+
+    - 자녀가 포도알을 붙히거나 여러 이벤트 발생시 서버측에서 Board의 상태 전송
+
+    ```javascript
+     //포도 부착 버튼 클릭시 실행 함수
+        @Post('/grape/attach')
+        async attachBoard(
+        ): Promise<responseBoardDto> {
+            globalVersion += 1; // 서버에서 이벤트 발생 확인
+            return response
+        }
+    
+    ---------------------------------------------------------------------------------------
+         
+        // 다른 이벤트가 발생했을 경우(대기중인 서버에서 이벤트 발생시 Board 상태 응답)
               if (localVersion < globalVersion) {
                 const use_grape = await this.boardService.getBoardByUserId(id);
                 // 맨 처음 보드 상태를 불러옴(Wishlist 증정으로 인한 Board 존재하지 않을 경우)
@@ -184,11 +200,9 @@ AI를 활용하여 미션을 추천받아 보세요.
             return observer;
           });
     
-        }
     ```
 
     
-
 
 
 ## 📚 기술스택
