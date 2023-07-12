@@ -123,28 +123,11 @@ export class EventGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     return createRooms;
   }
 
-  // @SubscribeMessage('delete-room')
-  // handleDeleteRoom(
-  //   @ConnectedSocket() socket: Socket,
-  //   @MessageBody() roomName: string,
-  // ) {
-  //   socket.leave(roomName);
-  //   createRooms = createRooms.filter((createRoom) => createRoom !== roomName);
-  //   this.server.emit('delete-room', roomName);
-  //   this.server.emit('room-list', createRooms); // 방 목록 갱신
-
-  //   return { success: true };
-  // }
-
   @SubscribeMessage('create-room')
   async handleCreateRoom(
     @ConnectedSocket() socket: Socket,
     @MessageBody() { roomName, user }: MessagePayload,
   ) {
-    // const exists = createRooms.find((createRoom) => createRoom === roomName);
-    // if (exists) {
-    //   return { number: 0, payload: `Room ${roomName} already exists` };
-    // }
 
     const now_user = await this.authService.getUserById(user.id);
 
@@ -191,14 +174,5 @@ export class EventGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     socket.join(roomName);
     return { success: true };
   }
-
-  // @SubscribeMessage('leave-room')
-  // handleLeaveRoom(
-  //   @ConnectedSocket() socket: Socket,
-  //   @MessageBody() roomName: string,
-  // ) {
-  //   socket.leave(roomName);
-  //   return { success: true };
-  // }
 
 }
