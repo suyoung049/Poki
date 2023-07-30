@@ -202,7 +202,7 @@ AI를 활용하여 미션을 추천받아 보세요.
     
     ```
 
-    - Chat WebSocket 백엔드 부분 설계
+- Chat WebSocket 백엔드 부분 설계
 
   - 채팅 내역 저장
 
